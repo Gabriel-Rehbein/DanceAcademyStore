@@ -1,3 +1,6 @@
+Trabalho de API'S - Análise e Desenvolvimento de Sistemas 
+Integrantes: Bruna Azevedo e Gabriel Rehbein
+
 TEMA: Sistema de Registro de Vendas Dance Academy Store
 
 Introdução: 
@@ -28,7 +31,7 @@ Funcionalidade do CRUD dos venda: Registrar os dados das vendas, buscar as venda
 
 --------------------------------------------------------------------------------------------------------------------------
 
---> Intalar Modulos
+--> Instalar Modulos
 
 npm install express
 
@@ -41,8 +44,7 @@ node app.js
 
 
 --------------------------------------------------------------------------------------------------------------------------
-
-npm install jest supertest --save-dev
+npm install --save-dev jest supertest
 
 "scripts": {
   "test": "jest"
