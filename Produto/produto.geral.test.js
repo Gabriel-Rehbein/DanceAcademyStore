@@ -1,5 +1,6 @@
+// Produto/produto.geral.test.js
 const request = require('supertest');
-const app = require('./app');
+const app = require('../app');
 
 describe('API Produtos - Loja de Ballet', () => {
   let idProduto;

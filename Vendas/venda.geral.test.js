@@ -1,8 +1,18 @@
+// Vendas/venda.geral.test.js
 const request = require('supertest');
-const app = require('./app');
+const app = require('../app');
 
 describe('API Vendas - Loja de Ballet', () => {
   let idVenda;
+
+  // Primeiro, cria um produto necessário para a venda
+  beforeAll(async () => {
+    await request(app).post('/produtos').send({
+      nome: 'Sapatilha Infantil',
+      preco: 80.00,
+      tipo: 'sapatilha'
+    });
+  });
 
   test('POST /vendas → deve criar uma venda com produtoId existente', async () => {
     const res = await request(app).post('/vendas').send({
