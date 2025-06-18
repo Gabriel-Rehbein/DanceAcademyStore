@@ -2,7 +2,7 @@ let vendas = [];
 let produtos = [];
 
 function setProdutosExternos(listaProdutos) {
-  produtos = listaProdutos;
+  produtos = listaProdutos || [];
 }
 
 function listarVendas() {
@@ -10,12 +10,30 @@ function listarVendas() {
 }
 
 function buscarVendaPorId(id) {
+  if (isNaN(id)) throw new Error('ID inválido');
   return vendas.find(v => v.id === id);
 }
 
-function adicionarVenda({ produtoId, quantidade }) {
+function adicionarVenda({ itens }) {
+  if (!Array.isArray(itens) || itens.length === 0) {
+    return { erro: 'Venda deve conter ao menos um item' };
+  }
+
+  const item = itens[0]; // MVP: aceita apenas um item por venda
+  const { produtoId, quantidade } = item;
+
+  if (!produtoId || typeof produtoId !== 'number') {
+    return { erro: 'ID do produto é obrigatório e deve ser um número' };
+  }
+
+  if (!quantidade || typeof quantidade !== 'number' || quantidade <= 0) {
+    return { erro: 'Quantidade deve ser um número positivo' };
+  }
+
   const produto = produtos.find(p => p.id === produtoId);
-  if (!produto) return { erro: 'Produto não encontrado' };
+  if (!produto) {
+    return { erro: 'Produto não encontrado' };
+  }
 
   const novaVenda = {
     id: vendas.length + 1,
@@ -32,8 +50,11 @@ function adicionarVenda({ produtoId, quantidade }) {
 }
 
 function deletarVenda(id) {
+  if (isNaN(id)) throw new Error('ID inválido');
+
   const index = vendas.findIndex(v => v.id === id);
   if (index === -1) return false;
+
   vendas.splice(index, 1);
   return true;
 }
