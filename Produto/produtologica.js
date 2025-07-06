@@ -1,16 +1,22 @@
-let produtos = [];
-let proximoId = 1;
+// Produto/produtologica.js
+const pool = require('../db');
 
-function listarTodos() {
-  return produtos;
+// Listar todos os produtos
+async function listarTodos() {
+  const result = await pool.query('SELECT * FROM produtos ORDER BY id');
+  return result.rows;
 }
 
-function buscarPorId(id) {
+// Buscar por ID
+async function buscarPorId(id) {
   if (isNaN(id)) throw new Error('ID inválido');
-  return produtos.find(p => p.id === id);
+
+  const result = await pool.query('SELECT * FROM produtos WHERE id = $1', [id]);
+  return result.rows[0] || null;
 }
 
-function adicionarProduto({ nome, preco, tipo }) {
+// Adicionar produto
+async function adicionarProduto({ nome, preco, tipo }) {
   if (!nome || typeof nome !== 'string') {
     throw new Error('Nome do produto é obrigatório e deve ser uma string');
   }
@@ -23,55 +29,41 @@ function adicionarProduto({ nome, preco, tipo }) {
     throw new Error('Tipo do produto é obrigatório e deve ser uma string');
   }
 
-  const novoProduto = {
-    id: proximoId++,
-    nome,
-    preco,
-    tipo
-  };
-
-  produtos.push(novoProduto);
-  return novoProduto;
+  const result = await pool.query(
+    'INSERT INTO produtos (nome, preco, tipo) VALUES ($1, $2, $3) RETURNING *',
+    [nome, preco, tipo]
+  );
+  return result.rows[0];
 }
 
-function atualizarProduto(id, dados) {
+// Atualizar produto
+async function atualizarProduto(id, dados) {
   if (isNaN(id)) throw new Error('ID inválido');
 
-  const produto = buscarPorId(id);
-  if (!produto) return null;
+  const produtoAtual = await buscarPorId(id);
+  if (!produtoAtual) return null;
 
-  if (dados.nome && typeof dados.nome !== 'string') {
-    throw new Error('Nome deve ser uma string');
-  }
+  const nome = dados.nome || produtoAtual.nome;
+  const preco = dados.preco !== undefined ? dados.preco : produtoAtual.preco;
+  const tipo = dados.tipo || produtoAtual.tipo;
 
-  if (dados.preco !== undefined && (typeof dados.preco !== 'number' || dados.preco <= 0)) {
-    throw new Error('Preço deve ser um número positivo');
-  }
+  if (typeof nome !== 'string') throw new Error('Nome deve ser uma string');
+  if (typeof preco !== 'number' || preco <= 0) throw new Error('Preço deve ser um número positivo');
+  if (typeof tipo !== 'string') throw new Error('Tipo deve ser uma string');
 
-  if (dados.tipo && typeof dados.tipo !== 'string') {
-    throw new Error('Tipo deve ser uma string');
-  }
-
-  produto.nome = dados.nome || produto.nome;
-  produto.preco = dados.preco !== undefined ? dados.preco : produto.preco;
-  produto.tipo = dados.tipo || produto.tipo;
-
-  return produto;
+  const result = await pool.query(
+    'UPDATE produtos SET nome=$1, preco=$2, tipo=$3 WHERE id=$4 RETURNING *',
+    [nome, preco, tipo, id]
+  );
+  return result.rows[0];
 }
 
-function deletarProduto(id) {
+// Deletar produto
+async function deletarProduto(id) {
   if (isNaN(id)) throw new Error('ID inválido');
 
-  const index = produtos.findIndex(p => p.id === id);
-  if (index === -1) return false;
-
-  produtos.splice(index, 1);
-  return true;
-}
-
-function resetarProdutos() {
-  produtos = [];
-  proximoId = 1;
+  const result = await pool.query('DELETE FROM produtos WHERE id=$1', [id]);
+  return result.rowCount > 0;
 }
 
 module.exports = {
@@ -79,6 +71,5 @@ module.exports = {
   buscarPorId,
   adicionarProduto,
   atualizarProduto,
-  deletarProduto,
-  resetarProdutos
+  deletarProduto
 };

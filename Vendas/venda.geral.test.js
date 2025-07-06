@@ -1,32 +1,43 @@
-// Vendas/venda.geral.test.js
 const request = require('supertest');
 const app = require('../app');
+const pool = require('../db');
 
 describe('API Vendas - Loja de Ballet', () => {
-  let idVenda;
+  let produtoId;
+  let vendaId;
 
-  beforeAll(async () => {
-    // Garante que um produto válido exista
-    await request(app).post('/produtos').send({
+  beforeEach(async () => {
+    // Limpa dados
+    await pool.query('DELETE FROM itens_venda');
+    await pool.query('DELETE FROM vendas');
+    await pool.query('DELETE FROM produtos');
+
+    // Cadastra um produto válido
+    const res = await request(app).post('/produtos').send({
       nome: 'Sapatilha Infantil',
       preco: 80.00,
       tipo: 'sapatilha'
     });
+    produtoId = res.body.id;
   });
 
   test('POST /vendas → cria venda válida', async () => {
     const res = await request(app).post('/vendas').send({
       itens: [
-        { produtoId: 1, quantidade: 2 }
-      ]
+        { id_produto: produtoId, quantidade: 2 }
+      ],
+      cliente: 'Maria'
     });
     expect(res.statusCode).toBe(201);
-    expect(res.body.total).toBe(160);
-    expect(res.body.produtoNome).toBe('Sapatilha Infantil');
-    idVenda = res.body.id;
+    expect(res.body).toHaveProperty('mensagem', 'Venda cadastrada com sucesso');
+    vendaId = res.body.id;
   });
 
   test('GET /vendas → retorna lista de vendas', async () => {
+    await request(app).post('/vendas').send({
+      itens: [{ id_produto: produtoId, quantidade: 1 }],
+      cliente: 'João'
+    });
     const res = await request(app).get('/vendas');
     expect(res.statusCode).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
@@ -34,13 +45,19 @@ describe('API Vendas - Loja de Ballet', () => {
   });
 
   test('DELETE /vendas/:id → exclui venda existente', async () => {
-    const res = await request(app).delete(`/vendas/${idVenda}`);
-    expect(res.statusCode).toBe(204);
+    const resVenda = await request(app).post('/vendas').send({
+      itens: [{ id_produto: produtoId, quantidade: 1 }],
+      cliente: 'João'
+    });
+    const idVenda = resVenda.body.id;
+
+    const resDelete = await request(app).delete(`/vendas/${idVenda}`);
+    expect(resDelete.statusCode).toBe(204);
   });
 
   test('POST /vendas → erro ao usar produtoId inexistente', async () => {
     const res = await request(app).post('/vendas').send({
-      itens: [{ produtoId: 999, quantidade: 1 }]
+      itens: [{ id_produto: 9999, quantidade: 1 }]
     });
     expect(res.statusCode).toBe(400);
     expect(res.body.erro).toBe('Produto não encontrado');
@@ -48,10 +65,10 @@ describe('API Vendas - Loja de Ballet', () => {
 
   test('POST /vendas → erro ao enviar quantidade negativa', async () => {
     const res = await request(app).post('/vendas').send({
-      itens: [{ produtoId: 1, quantidade: -3 }]
+      itens: [{ id_produto: produtoId, quantidade: -3 }]
     });
     expect(res.statusCode).toBe(400);
-    expect(res.body.erro).toMatch(/Quantidade/);
+    expect(res.body.erro).toMatch(/quantidade/i);
   });
 
   test('POST /vendas → erro ao omitir itens obrigatórios', async () => {

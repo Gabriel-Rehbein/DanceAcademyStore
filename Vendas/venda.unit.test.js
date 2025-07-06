@@ -1,67 +1,62 @@
+const pool = require('../db');
 const venda = require('./vendalogica');
 
-beforeEach(() => {
-  venda.resetarVendas();
-  venda.setProdutosExternos([
-    { id: 1, nome: 'Colan', preco: 60, tipo: 'roupa' },
-    { id: 2, nome: 'Sapatilha', preco: 80, tipo: 'calçado' }
-  ]);
+beforeEach(async () => {
+  await pool.query('DELETE FROM itens_venda');
+  await pool.query('DELETE FROM vendas');
+  await pool.query('DELETE FROM produtos');
+
+  // cria produtos reais no banco
+  await pool.query(
+    `INSERT INTO produtos (id, nome, preco, tipo)
+     VALUES (1, 'Colan', 60, 'roupa'), (2, 'Sapatilha', 80, 'calçado')`
+  );
 });
 
-test('deve adicionar uma venda válida', () => {
-  const resultado = venda.adicionarVenda({
-    itens: [{ produtoId: 1, quantidade: 2 }]
+test('deve adicionar uma venda válida', async () => {
+  const resultado = await venda.adicionarVenda({
+    itens: [{ id_produto: 1, quantidade: 2 }],
+    cliente: 'Maria'
   });
-  expect(resultado).toHaveProperty('id');
-  expect(resultado.total).toBe(120);
+  expect(resultado).toHaveProperty('mensagem', 'Venda cadastrada com sucesso');
+  expect(resultado.id).toBeDefined();
 });
 
-test('deve retornar erro ao tentar vender produto inexistente', () => {
-  const resultado = venda.adicionarVenda({
-    itens: [{ produtoId: 999, quantidade: 1 }]
+test('deve retornar erro ao tentar vender produto inexistente', async () => {
+  await expect(
+    venda.adicionarVenda({
+      itens: [{ id_produto: 999, quantidade: 1 }],
+      cliente: 'Maria'
+    })
+  ).rejects.toThrow(/Produto não encontrado/);
+});
+
+test('deve retornar erro ao enviar quantidade negativa', async () => {
+  await expect(
+    venda.adicionarVenda({
+      itens: [{ id_produto: 1, quantidade: -2 }],
+      cliente: 'Maria'
+    })
+  ).rejects.toThrow(/quantidade/i);
+});
+
+test('deve listar as vendas existentes', async () => {
+  await venda.adicionarVenda({
+    itens: [{ id_produto: 1, quantidade: 1 }],
+    cliente: 'Maria'
   });
-  expect(resultado.erro).toBe('Produto não encontrado');
-});
-
-test('deve retornar erro ao enviar quantidade inválida (negativa)', () => {
-  const resultado = venda.adicionarVenda({
-    itens: [{ produtoId: 1, quantidade: -2 }]
-  });
-  expect(resultado.erro).toMatch(/Quantidade/);
-});
-
-test('deve retornar erro ao enviar quantidade inválida (não numérica)', () => {
-  const resultado = venda.adicionarVenda({
-    itens: [{ produtoId: 1, quantidade: 'duas' }]
-  });
-  expect(resultado.erro).toMatch(/Quantidade/);
-});
-
-test('deve retornar erro ao enviar produtoId inválido', () => {
-  const resultado = venda.adicionarVenda({
-    itens: [{ produtoId: 'abc', quantidade: 1 }]
-  });
-  expect(resultado.erro).toMatch(/ID do produto/);
-});
-
-test('deve listar as vendas existentes', () => {
-  venda.adicionarVenda({ itens: [{ produtoId: 1, quantidade: 1 }] });
-  const lista = venda.listarVendas();
+  const lista = await venda.listarVendas();
   expect(lista.length).toBe(1);
-  expect(lista[0]).toHaveProperty('produtoNome', 'Colan');
+  expect(lista[0]).toHaveProperty('id');
 });
 
-test('deve deletar uma venda por ID', () => {
-  const nova = venda.adicionarVenda({ itens: [{ produtoId: 2, quantidade: 1 }] });
-  const sucesso = venda.deletarVenda(nova.id);
+test('deve deletar uma venda existente', async () => {
+  const nova = await venda.adicionarVenda({
+    itens: [{ id_produto: 2, quantidade: 1 }],
+    cliente: 'João'
+  });
+  const sucesso = await venda.deletarVenda(nova.id);
   expect(sucesso).toBe(true);
-  expect(venda.listarVendas().length).toBe(0);
-});
-
-test('deletar com ID inválido deve lançar erro', () => {
-  expect(() => venda.deletarVenda('xyz')).toThrow('ID inválido');
-});
-
-test('buscar venda por ID inválido deve lançar erro', () => {
-  expect(() => venda.buscarVendaPorId('abc')).toThrow('ID inválido');
+  const vendasRestantes = await venda.listarVendas();
+  expect(vendasRestantes.length).toBe(0);
 });

@@ -1,26 +1,28 @@
 const express = require('express');
 const app = express();
 
+// importa rotas
 const produtoRoutes = require('./Produto/rotasproduto');
 const vendaRoutes = require('./Vendas/rotasvenda');
 
+// middlewares
 app.use(express.json());
 
-// Rotas principais
+// rotas principais
 app.use('/produtos', produtoRoutes);
 app.use('/vendas', vendaRoutes);
 
-// Rota raiz
+// rota raiz
 app.get('/', (req, res) => {
   res.send('API da Loja de Ballet 🩰');
 });
 
-// Rota não encontrada
+// rota não encontrada
 app.use((req, res) => {
   res.status(404).json({ erro: 'Rota não encontrada' });
 });
 
-// Middleware global de tratamento de erros
+// middleware global de erros
 app.use((err, req, res, next) => {
   console.error('Erro:', err.stack);
   res.status(err.status || 500).json({
@@ -28,9 +30,10 @@ app.use((err, req, res, next) => {
   });
 });
 
+// exporta o app
 module.exports = app;
 
-// Inicialização do servidor
+// inicialização
 if (require.main === module) {
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {

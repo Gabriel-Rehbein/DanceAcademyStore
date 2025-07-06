@@ -1,8 +1,13 @@
 const request = require('supertest');
 const app = require('../app');
+const pool = require('../db');
 
 describe('API Produtos - Loja de Ballet', () => {
   let idProduto;
+
+  beforeEach(async () => {
+    await pool.query('DELETE FROM produtos');
+  });
 
   test('POST /produtos → deve criar um produto válido', async () => {
     const res = await request(app).post('/produtos').send({
@@ -35,6 +40,11 @@ describe('API Produtos - Loja de Ballet', () => {
   });
 
   test('GET /produtos → deve listar todos os produtos', async () => {
+    await request(app).post('/produtos').send({
+      nome: 'Teste',
+      preco: 10,
+      tipo: 'acessório'
+    });
     const res = await request(app).get('/produtos');
     expect(res.statusCode).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
@@ -42,7 +52,12 @@ describe('API Produtos - Loja de Ballet', () => {
   });
 
   test('GET /produtos/:id → deve retornar um produto existente', async () => {
-    const res = await request(app).get(`/produtos/${idProduto}`);
+    const resCreate = await request(app).post('/produtos').send({
+      nome: 'Teste',
+      preco: 10,
+      tipo: 'acessório'
+    });
+    const res = await request(app).get(`/produtos/${resCreate.body.id}`);
     expect(res.statusCode).toBe(200);
     expect(res.body).toHaveProperty('nome');
   });
@@ -54,7 +69,12 @@ describe('API Produtos - Loja de Ballet', () => {
   });
 
   test('PUT /produtos/:id → deve atualizar um produto existente', async () => {
-    const res = await request(app).put(`/produtos/${idProduto}`).send({
+    const resCreate = await request(app).post('/produtos').send({
+      nome: 'Teste',
+      preco: 10,
+      tipo: 'acessório'
+    });
+    const res = await request(app).put(`/produtos/${resCreate.body.id}`).send({
       nome: 'Colan Infantil Rosa',
       preco: 64.90,
       tipo: 'colan'
@@ -74,7 +94,12 @@ describe('API Produtos - Loja de Ballet', () => {
   });
 
   test('DELETE /produtos/:id → deve excluir o produto', async () => {
-    const res = await request(app).delete(`/produtos/${idProduto}`);
+    const resCreate = await request(app).post('/produtos').send({
+      nome: 'Teste',
+      preco: 10,
+      tipo: 'acessório'
+    });
+    const res = await request(app).delete(`/produtos/${resCreate.body.id}`);
     expect(res.statusCode).toBe(204);
   });
 
