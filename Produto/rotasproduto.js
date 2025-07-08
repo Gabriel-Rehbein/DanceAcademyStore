@@ -1,9 +1,24 @@
-// Produto/rotasproduto.js
 const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 
-// Listar todos os produtos
+/**
+ * @swagger
+ * tags:
+ *   name: Produtos
+ *   description: Rotas para gerenciamento de produtos
+ */
+
+/**
+ * @swagger
+ * /produtos:
+ *   get:
+ *     summary: Lista todos os produtos
+ *     tags: [Produtos]
+ *     responses:
+ *       200:
+ *         description: Lista de produtos retornada com sucesso
+ */
 router.get('/', async (req, res, next) => {
   try {
     const result = await pool.query('SELECT * FROM produtos ORDER BY id');
@@ -13,7 +28,27 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-// Buscar produto por ID
+/**
+ * @swagger
+ * /produtos/{id}:
+ *   get:
+ *     summary: Buscar produto por ID
+ *     tags: [Produtos]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID do produto
+ *     responses:
+ *       200:
+ *         description: Produto encontrado
+ *       400:
+ *         description: ID inválido
+ *       404:
+ *         description: Produto não encontrado
+ */
 router.get('/:id', async (req, res, next) => {
   try {
     const id = parseInt(req.params.id);
@@ -30,7 +65,35 @@ router.get('/:id', async (req, res, next) => {
   }
 });
 
-// Adicionar novo produto
+/**
+ * @swagger
+ * /produtos:
+ *   post:
+ *     summary: Adicionar um novo produto
+ *     tags: [Produtos]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - nome
+ *               - preco
+ *               - tipo
+ *             properties:
+ *               nome:
+ *                 type: string
+ *               preco:
+ *                 type: number
+ *               tipo:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Produto criado com sucesso
+ *       400:
+ *         description: Dados inválidos
+ */
 router.post('/', async (req, res, next) => {
   try {
     const { nome, preco, tipo } = req.body;
@@ -58,7 +121,40 @@ router.post('/', async (req, res, next) => {
   }
 });
 
-// Atualizar produto
+/**
+ * @swagger
+ * /produtos/{id}:
+ *   put:
+ *     summary: Atualizar um produto existente
+ *     tags: [Produtos]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID do produto
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               nome:
+ *                 type: string
+ *               preco:
+ *                 type: number
+ *               tipo:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Produto atualizado com sucesso
+ *       400:
+ *         description: ID inválido ou dados inválidos
+ *       404:
+ *         description: Produto não encontrado
+ */
 router.put('/:id', async (req, res, next) => {
   try {
     const id = parseInt(req.params.id);
@@ -81,7 +177,27 @@ router.put('/:id', async (req, res, next) => {
   }
 });
 
-// Deletar produto
+/**
+ * @swagger
+ * /produtos/{id}:
+ *   delete:
+ *     summary: Deletar um produto
+ *     tags: [Produtos]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID do produto
+ *     responses:
+ *       204:
+ *         description: Produto deletado com sucesso
+ *       400:
+ *         description: ID inválido
+ *       404:
+ *         description: Produto não encontrado
+ */
 router.delete('/:id', async (req, res, next) => {
   try {
     const id = parseInt(req.params.id);

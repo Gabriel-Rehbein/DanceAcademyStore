@@ -54,3 +54,13 @@ Rodar testes:
 
 npm test
 
+----------------------------------------------------------------------------------------------------------------------------
+
+npm install swagger-ui-express swagger-jsdoc
+
+
+(Instalar o SWAGGER) 
+
+http://localhost:3000/api-docs
+
+

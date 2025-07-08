@@ -1,9 +1,24 @@
-// Vendas/rotasvenda.js
 const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 
-// Listar todas as vendas
+/**
+ * @swagger
+ * tags:
+ *   name: Vendas
+ *   description: Rotas para gerenciamento de vendas
+ */
+
+/**
+ * @swagger
+ * /vendas:
+ *   get:
+ *     summary: Lista todas as vendas
+ *     tags: [Vendas]
+ *     responses:
+ *       200:
+ *         description: Lista de vendas retornada com sucesso
+ */
 router.get('/', async (req, res, next) => {
   try {
     const vendas = await pool.query('SELECT * FROM vendas ORDER BY id');
@@ -13,7 +28,27 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-// Buscar venda por ID + itens
+/**
+ * @swagger
+ * /vendas/{id}:
+ *   get:
+ *     summary: Buscar venda por ID, incluindo os itens
+ *     tags: [Vendas]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID da venda
+ *     responses:
+ *       200:
+ *         description: Venda encontrada com seus itens
+ *       400:
+ *         description: ID inválido
+ *       404:
+ *         description: Venda não encontrada
+ */
 router.get('/:id', async (req, res, next) => {
   try {
     const id = parseInt(req.params.id);
@@ -37,7 +72,41 @@ router.get('/:id', async (req, res, next) => {
   }
 });
 
-// Criar nova venda
+/**
+ * @swagger
+ * /vendas:
+ *   post:
+ *     summary: Cadastrar uma nova venda
+ *     tags: [Vendas]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - itens
+ *             properties:
+ *               cliente:
+ *                 type: string
+ *               itens:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   required:
+ *                     - id_produto
+ *                     - quantidade
+ *                   properties:
+ *                     id_produto:
+ *                       type: integer
+ *                     quantidade:
+ *                       type: integer
+ *     responses:
+ *       201:
+ *         description: Venda cadastrada com sucesso
+ *       400:
+ *         description: Dados inválidos ou incompletos
+ */
 router.post('/', async (req, res, next) => {
   try {
     const dados = req.body;
@@ -45,14 +114,12 @@ router.post('/', async (req, res, next) => {
       return res.status(400).json({ erro: 'Venda deve conter ao menos um item' });
     }
 
-    // cria a venda
     const result = await pool.query(
       'INSERT INTO vendas (data, cliente) VALUES (NOW(), $1) RETURNING id',
       [dados.cliente || 'Cliente padrão']
     );
     const vendaId = result.rows[0].id;
 
-    // cadastra itens da venda
     for (const item of dados.itens) {
       await pool.query(
         'INSERT INTO itens_venda (id_venda, id_produto, quantidade) VALUES ($1, $2, $3)',
@@ -66,16 +133,33 @@ router.post('/', async (req, res, next) => {
   }
 });
 
-// Excluir venda
+/**
+ * @swagger
+ * /vendas/{id}:
+ *   delete:
+ *     summary: Excluir uma venda
+ *     tags: [Vendas]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID da venda
+ *     responses:
+ *       204:
+ *         description: Venda excluída com sucesso
+ *       400:
+ *         description: ID inválido
+ *       404:
+ *         description: Venda não encontrada
+ */
 router.delete('/:id', async (req, res, next) => {
   try {
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).json({ erro: 'ID inválido' });
 
-    // exclui itens primeiro (FK)
     await pool.query('DELETE FROM itens_venda WHERE id_venda = $1', [id]);
-
-    // depois exclui a venda
     const result = await pool.query('DELETE FROM vendas WHERE id = $1', [id]);
 
     if (result.rowCount === 0)
