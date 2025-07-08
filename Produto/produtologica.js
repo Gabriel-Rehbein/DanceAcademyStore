@@ -62,9 +62,16 @@ async function atualizarProduto(id, dados) {
 // Deletar produto
 async function deletarProduto(id) {
   if (isNaN(id)) throw new Error('ID inválido');
+
   const result = await pool.query('DELETE FROM produtos WHERE id=$1', [id]);
-  return result.rowCount > 0;
+
+  if (result.rowCount > 0) {
+    return { mensagem: 'Produto deletado com sucesso' };
+  } else {
+    return null;
+  }
 }
+
 
 module.exports = {
   listarTodos,

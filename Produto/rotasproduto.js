@@ -81,6 +81,7 @@ router.get('/:id', async (req, res, next) => {
  *               - nome
  *               - preco
  *               - tipo
+ *               - quantidade
  *             properties:
  *               nome:
  *                 type: string
@@ -88,6 +89,8 @@ router.get('/:id', async (req, res, next) => {
  *                 type: number
  *               tipo:
  *                 type: string
+ *               quantidade:
+ *                 type: integer
  *     responses:
  *       201:
  *         description: Produto criado com sucesso
@@ -96,7 +99,7 @@ router.get('/:id', async (req, res, next) => {
  */
 router.post('/', async (req, res, next) => {
   try {
-    const { nome, preco, tipo } = req.body;
+    const { nome, preco, tipo, quantidade } = req.body;
 
     if (!nome || typeof nome !== 'string') {
       return res.status(400).json({ erro: 'Nome do produto é obrigatório e deve ser uma string' });
@@ -110,9 +113,13 @@ router.post('/', async (req, res, next) => {
       return res.status(400).json({ erro: 'Tipo do produto é obrigatório e deve ser uma string' });
     }
 
+    if (typeof quantidade !== 'number' || quantidade < 0) {
+      return res.status(400).json({ erro: 'Quantidade deve ser um número não-negativo' });
+    }
+
     const result = await pool.query(
-      'INSERT INTO produtos (nome, preco, tipo) VALUES ($1, $2, $3) RETURNING *',
-      [nome, preco, tipo]
+      'INSERT INTO produtos (nome, preco, tipo, quantidade) VALUES ($1, $2, $3, $4) RETURNING *',
+      [nome, preco, tipo, quantidade]
     );
 
     res.status(201).json(result.rows[0]);
@@ -147,6 +154,8 @@ router.post('/', async (req, res, next) => {
  *                 type: number
  *               tipo:
  *                 type: string
+ *               quantidade:
+ *                 type: integer
  *     responses:
  *       200:
  *         description: Produto atualizado com sucesso
@@ -158,18 +167,19 @@ router.post('/', async (req, res, next) => {
 router.put('/:id', async (req, res, next) => {
   try {
     const id = parseInt(req.params.id);
-    const { nome, preco, tipo } = req.body;
+    const { nome, preco, tipo, quantidade } = req.body;
 
     if (isNaN(id)) return res.status(400).json({ erro: 'ID inválido' });
 
-    const result = await pool.query(
-      'UPDATE produtos SET nome=$1, preco=$2, tipo=$3 WHERE id=$4 RETURNING *',
-      [nome, preco, tipo, id]
-    );
-
-    if (result.rows.length === 0) {
+    const produto = await pool.query('SELECT * FROM produtos WHERE id = $1', [id]);
+    if (produto.rows.length === 0) {
       return res.status(404).json({ erro: 'Produto não encontrado' });
     }
+
+    const result = await pool.query(
+      'UPDATE produtos SET nome=$1, preco=$2, tipo=$3, quantidade=$4 WHERE id=$5 RETURNING *',
+      [nome || produto.rows[0].nome, preco ?? produto.rows[0].preco, tipo || produto.rows[0].tipo, quantidade ?? produto.rows[0].quantidade, id]
+    );
 
     res.json(result.rows[0]);
   } catch (err) {
@@ -191,8 +201,16 @@ router.put('/:id', async (req, res, next) => {
  *           type: integer
  *         description: ID do produto
  *     responses:
- *       204:
+ *       200:
  *         description: Produto deletado com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 mensagem:
+ *                   type: string
+ *                   example: Produto deletado com sucesso
  *       400:
  *         description: ID inválido
  *       404:
@@ -208,7 +226,7 @@ router.delete('/:id', async (req, res, next) => {
       return res.status(404).json({ erro: 'Produto não encontrado' });
     }
 
-    res.status(204).send();
+    res.status(200).json({ mensagem: 'Produto deletado com sucesso' });
   } catch (err) {
     next(err);
   }
