@@ -6,10 +6,12 @@ beforeEach(async () => {
   await pool.query('DELETE FROM vendas');
   await pool.query('DELETE FROM produtos');
 
-  // cria produtos reais no banco
+  // Insere produtos com a nova coluna 'quantidade'
   await pool.query(
-    `INSERT INTO produtos (id, nome, preco, tipo)
-     VALUES (1, 'Colan', 60, 'roupa'), (2, 'Sapatilha', 80, 'calçado')`
+    `INSERT INTO produtos (id, nome, preco, tipo, quantidade)
+     VALUES 
+      (1, 'Colan', 60, 'roupa', 100),
+      (2, 'Sapatilha', 80, 'calçado', 100)`
   );
 });
 

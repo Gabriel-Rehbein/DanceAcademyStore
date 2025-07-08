@@ -41,50 +41,100 @@ async function adicionarVenda({ itens, cliente }) {
     throw new Error('Venda deve conter ao menos um item');
   }
 
-  // Aceita apenas um item (MVP)
-  const item = itens[0];
-  const { id_produto, quantidade } = item;
+  const client = await pool.connect();
 
-  if (!id_produto || typeof id_produto !== 'number') {
-    throw new Error('ID do produto é obrigatório e deve ser um número');
+  try {
+    await client.query('BEGIN');
+
+    const novaVenda = await client.query(
+      'INSERT INTO vendas (data, cliente) VALUES (NOW(), $1) RETURNING id',
+      [cliente || 'Cliente não informado']
+    );
+
+    const vendaId = novaVenda.rows[0].id;
+
+    for (const item of itens) {
+      const { id_produto, quantidade } = item;
+
+      if (!id_produto || typeof id_produto !== 'number') {
+        throw new Error('ID do produto inválido');
+      }
+
+      if (!quantidade || typeof quantidade !== 'number' || quantidade <= 0) {
+        throw new Error('Quantidade deve ser um número positivo');
+      }
+
+      const produto = await client.query(
+        'SELECT * FROM produtos WHERE id = $1',
+        [id_produto]
+      );
+
+      if (produto.rowCount === 0) {
+        throw new Error('Produto não encontrado');
+      }
+
+      const estoqueAtual = produto.rows[0].quantidade;
+
+      if (estoqueAtual < quantidade) {
+        throw new Error('Estoque insuficiente para o produto');
+      }
+
+      await client.query(
+        'UPDATE produtos SET quantidade = quantidade - $1 WHERE id = $2',
+        [quantidade, id_produto]
+      );
+
+      await client.query(
+        'INSERT INTO itens_venda (id_venda, id_produto, quantidade) VALUES ($1, $2, $3)',
+        [vendaId, id_produto, quantidade]
+      );
+    }
+
+    await client.query('COMMIT');
+    return { id: vendaId, mensagem: 'Venda cadastrada com sucesso' };
+
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
   }
-
-  if (!quantidade || typeof quantidade !== 'number' || quantidade <= 0) {
-    throw new Error('Quantidade deve ser um número positivo');
-  }
-
-  // Verifica se o produto existe
-  const produto = await pool.query('SELECT * FROM produtos WHERE id = $1', [id_produto]);
-  if (produto.rows.length === 0) {
-    throw new Error('Produto não encontrado');
-  }
-
-  // cria a venda
-  const novaVenda = await pool.query(
-    'INSERT INTO vendas (data, cliente) VALUES (NOW(), $1) RETURNING *',
-    [cliente || 'Cliente não informado']
-  );
-
-  const vendaId = novaVenda.rows[0].id;
-
-  // registra o item
-  await pool.query(
-    'INSERT INTO itens_venda (id_venda, id_produto, quantidade) VALUES ($1, $2, $3)',
-    [vendaId, id_produto, quantidade]
-  );
-
-  return { id: vendaId, mensagem: 'Venda cadastrada com sucesso' };
 }
 
 // Deletar venda
 async function deletarVenda(id) {
   if (isNaN(id)) throw new Error('ID inválido');
 
-  // exclui itens primeiro
-  await pool.query('DELETE FROM itens_venda WHERE id_venda = $1', [id]);
-  // depois exclui venda
-  const result = await pool.query('DELETE FROM vendas WHERE id = $1', [id]);
-  return result.rowCount > 0;
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // Recupera itens para devolver ao estoque
+    const itens = await client.query(
+      'SELECT id_produto, quantidade FROM itens_venda WHERE id_venda = $1',
+      [id]
+    );
+
+    for (const item of itens.rows) {
+      await client.query(
+        'UPDATE produtos SET quantidade = quantidade + $1 WHERE id = $2',
+        [item.quantidade, item.id_produto]
+      );
+    }
+
+    await client.query('DELETE FROM itens_venda WHERE id_venda = $1', [id]);
+    const result = await client.query('DELETE FROM vendas WHERE id = $1', [id]);
+
+    await client.query('COMMIT');
+    return result.rowCount > 0;
+
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 module.exports = {
